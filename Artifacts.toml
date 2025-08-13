@@ -1,6 +1,6 @@
-["dyad-lang-studio-v0.5.1"]
+[dyad-lang]
 git-tree-sha1 = "150b187757d1dd1d7592afe12c621594d032cc21"
 
-    [["dyad-lang-studio-v0.5.1".download]]
-    sha256 = "873a3d2d2fa711e54df45289833ba366821e2f6e189e5b9e6b982099be0259ac"
-    url = "https://github.com/DyadLang/DyadLangArtifacts/releases/download/v1.0.0/dyad-lang-studio-v0.5.1.tar.gz"
+    [[dyad-lang.download]]
+    sha256 = "fa9004d5f3dfe585274023546198313f0f77ad2696b623d69e962f79334f893c"
+    url = "https://github.com/DyadLang/DyadLangArtifacts/releases/download/v0.5.1/dyad-lang.tar.gz"

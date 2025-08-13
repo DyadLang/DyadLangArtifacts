@@ -1,7 +1,7 @@
 name = "DyadLangArtifacts"
 uuid = "d06dcbe2-c11f-4421-b8ce-2adf73295f28"
 authors = ["Your Name <your.email@example.com>"]
-version = "1.0.0"
+version = "0.5.1"
 description = "Dyad language repository artifacts for Julia"
 
 [deps]

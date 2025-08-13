@@ -163,12 +163,8 @@ function process_dyad_lang_artifact(commit_hash::String = DEFAULT_COMMIT; lazy::
     # Clone repository at specific commit
     repo_dir = clone_repo_at_commit(commit_hash)
     
-    # Use shortened commit hash for artifact name if it's a SHA
-    artifact_name = if length(commit_hash) == 40  # Full SHA
-        "dyad-lang-$(commit_hash[1:8])"
-    else
-        "dyad-lang-$commit_hash"
-    end
+    # Always use 'dyad-lang' as the artifact name
+    artifact_name = "dyad-lang"
     
     println("📦 Creating artifact: $artifact_name")
     
