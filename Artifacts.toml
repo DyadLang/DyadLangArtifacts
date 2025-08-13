@@ -1,0 +1,3 @@
+# This file will be populated by the prepare_artifacts.jl script
+# Run: julia gen/prepare_artifacts.jl [commit_hash]
+# to add dyad-lang repository artifacts
