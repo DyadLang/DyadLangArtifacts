@@ -24,7 +24,7 @@ const TEMP_DIR = mktempdir()
 
 # Default commit hash (you can change this to your desired commit)
 const DEFAULT_COMMIT = "main"  # Change this to a specific commit hash
-const REPO_URL = "https://github.com/dyad-lang/dyad-lang.git"
+const REPO_URL = "https://github.com/juliacomputing/dyad-lang.git"
 
 # Clone repository at specific commit
 function clone_repo_at_commit(commit_hash::String)
