@@ -1,10 +1,10 @@
 #!/usr/bin/env julia
 
-# Script to prepare dyad-lang repository artifact at a specific commit
+# Script to prepare dyad-cli bundle artifact at a specific commit
 # Usage: julia prepare_artifacts.jl [commit_hash]
 #
-# This script will clone the dyad-lang repository at a specific commit
-# and create an artifact from it
+# This script will clone the dyad-lang repository at a specific commit,
+# build the CLI using esbuild, and create a bundled JS artifact.
 
 using Pkg
 Pkg.activate((@__DIR__))
@@ -13,6 +13,7 @@ using Pkg.Artifacts: bind_artifact!, create_artifact
 using Pkg.GitTools: tree_hash
 using TOML
 using SHA
+using NodeJS_22_jll
 
 const SCRIPT_DIR = @__DIR__
 const PROJECT_DIR = dirname(SCRIPT_DIR)
@@ -23,74 +24,76 @@ const PROJECT_TOML = joinpath(PROJECT_DIR, "Project.toml")
 const TEMP_DIR = mktempdir()
 
 # Default commit hash (you can change this to your desired commit)
-const DEFAULT_COMMIT = "main"  # Change this to a specific commit hash
+const DEFAULT_COMMIT = "next"  # Change this to a specific commit hash
 const REPO_URL = "https://github.com/juliacomputing/dyad-lang.git"
 
 # Clone repository at specific commit
 function clone_repo_at_commit(commit_hash::String)
     repo_temp = joinpath(TEMP_DIR, "dyad-lang-clone")
-    
+
     println("📥 Cloning dyad-lang repository...")
     run(`git clone --no-checkout $REPO_URL $repo_temp`)
-    
+
     cd(repo_temp) do
         println("   Checking out commit: $commit_hash")
         run(`git checkout $commit_hash`)
     end
-    
+
     return repo_temp
 end
 
-# Create tarball with repository contents
-function create_artifact_tarball(repo_dir::String, artifact_name::String, commit_hash::String)
-    # Create temporary directory for this artifact
+# Create CLI bundle using esbuild
+function create_cli_bundle(repo_dir::String, artifact_name::String, commit_hash::String)
     artifact_temp = joinpath(TEMP_DIR, artifact_name)
     mkpath(artifact_temp)
-    
-    # Copy repository contents (excluding .git directory)
-    for (root, dirs, files) in walkdir(repo_dir)
-        # Skip .git directory
-        if occursin(".git", root)
-            continue
+
+    cd(repo_dir) do
+        # Install dependencies and bundle CLI
+        npm_path = if Sys.iswindows()
+            joinpath(dirname(NodeJS_22_jll.npm), "npm.cmd")
+        else
+            NodeJS_22_jll.npm
         end
-        
-        rel_path = relpath(root, repo_dir)
-        dest_dir = joinpath(artifact_temp, rel_path)
-        mkpath(dest_dir)
-        
-        for file in files
-            src = joinpath(root, file)
-            dst = joinpath(dest_dir, file)
-            cp(src, dst)
+
+        println("📦 Installing npm dependencies...")
+        NodeJS_22_jll.node() do _
+            run(`$npm_path ci`)
+
+            println("🔨 Building internal packages (this may take a few minutes)...")
+            run(`$npm_path run build`)
+
+            println("🔨 Bundling CLI with esbuild...")
+            outfile = joinpath(artifact_temp, "dyad-cli.js")
+            run(`$npm_path exec -- esbuild apps/cli/src/scripts/entry.ts --bundle --platform=node --outfile=$outfile`)
         end
     end
-    
-    # Create ATTRIBUTION.md file
+
+    # Create ATTRIBUTION.md
     attribution_content = """
-    # Dyad Language Repository Artifact
-    
-    This artifact contains the dyad-lang repository at commit: $commit_hash
-    
+    # Dyad CLI Bundle
+
+    This artifact contains the bundled Dyad CLI from dyad-lang at commit: $commit_hash
+
     ## Source
     Repository: $REPO_URL
     Commit: $commit_hash
-    
+
+    ## Usage
+    Run with Node.js: `node dyad-cli.js [command] [options]`
+
     ## License
-    Please refer to the LICENSE file in the repository for licensing information.
-    
-    ## Attribution
-    This is a snapshot of the dyad-lang repository for use as a Julia artifact.
+    Please refer to the LICENSE file in the dyad-lang repository for licensing information.
     """
-    
+
     write(joinpath(artifact_temp, "ATTRIBUTION.md"), attribution_content)
-    
-    # Create compressed tarball using command line tar
+
+    # Create compressed tarball
     mkpath(TARBALLS_DIR)
     tarball_path = joinpath(TARBALLS_DIR, "$(artifact_name).tar.gz")
-    
-    # Use tar command to create compressed tarball
+
+    println("📁 Creating tarball: $(basename(tarball_path))")
     run(`tar -czf $tarball_path -C $TEMP_DIR $artifact_name`)
-    
+
     return tarball_path
 end
 
@@ -122,7 +125,7 @@ function add_local_artifact!(
     tarball_path::String;
     force::Bool = false,
     lazy::Bool = false
-)    
+)
     # Create artifact from the tarball to ensure consistency
     git_tree_sha1 = create_artifact() do artifact_dir
         # Extract the tarball we just created into the artifact directory
@@ -137,7 +140,7 @@ function add_local_artifact!(
     version = get_project_version()
     repo = get_repo_info()
     github_url = "https://github.com/$(repo)/releases/download/$(version)/$(basename(tarball_path))"
-    
+
     # Bind artifact with GitHub URL
     bind_artifact!(
         artifacts_toml,
@@ -147,31 +150,30 @@ function add_local_artifact!(
         lazy = lazy,
         force = force
     )
-    
+
     if lazy
         println("   Marked as lazy artifact")
     end
-    
+
     return git_tree_sha1
 end
 
 # Main processing function
-function process_dyad_lang_artifact(commit_hash::String = DEFAULT_COMMIT; lazy::Bool = false)
-    println("🚀 Processing dyad-lang repository artifact")
+function process_dyad_cli_artifact(commit_hash::String = DEFAULT_COMMIT; lazy::Bool = false)
+    println("🚀 Processing dyad-cli bundle artifact")
     println("   Commit: $commit_hash")
-    
+
     # Clone repository at specific commit
     repo_dir = clone_repo_at_commit(commit_hash)
-    
-    # Always use 'dyad-lang' as the artifact name
-    artifact_name = "dyad-lang"
-    
+
+    artifact_name = "dyad-cli"
+
     println("📦 Creating artifact: $artifact_name")
-    
-    # Create tarball
-    tarball_path = create_artifact_tarball(repo_dir, artifact_name, commit_hash)
+
+    # Create CLI bundle
+    tarball_path = create_cli_bundle(repo_dir, artifact_name, commit_hash)
     println("   Created tarball: $(basename(tarball_path))")
-    
+
     # Add artifact using local directory and tarball
     artifact_id = add_local_artifact!(
         ARTIFACTS_TOML,
@@ -182,16 +184,15 @@ function process_dyad_lang_artifact(commit_hash::String = DEFAULT_COMMIT; lazy::
         lazy=lazy
     )
     println("   Artifact ID: $artifact_id")
-    
+
     println("\n✅ Successfully created artifact: $artifact_name")
     println("📄 Updated: $ARTIFACTS_TOML")
-    
+
     println("\n🎯 Next steps:")
-    println("   1. Update the commit hash in this script if needed")
-    println("   2. Run: julia gen/create_release.jl")
-    println("   3. The artifact can be accessed using:")
+    println("   1. Run: julia gen/create_release.jl")
+    println("   2. The artifact can be accessed using:")
     println("      using DyadLangArtifacts")
-    println("      path = dyadlang_artifact_dir(\"$artifact_name\")")
+    println("      path = dyad_cli_js()")
 end
 
 # Run if called directly
@@ -199,6 +200,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
     # Check if commit hash was provided as argument
     commit_hash = length(ARGS) > 0 ? ARGS[1] : DEFAULT_COMMIT
     lazy = "--lazy" in ARGS
-    
-    process_dyad_lang_artifact(commit_hash; lazy=lazy)
+
+    process_dyad_cli_artifact(commit_hash; lazy=lazy)
 end
