@@ -3,19 +3,38 @@ module DyadLangArtifacts
 using Artifacts, LazyArtifacts
 
 """
-    dyadlang_artifact_dir(name::String) -> String
+    dyad_cli_js() -> String
 
-Get the directory of a specific artifact.  
-This will be a directory that contains the artifact as data 
-(but you have to know what the file structure is after that),
-and optionally an ATTRIBUTION.md file that contains the attribution information for the artifact.
+Get the path to the bundled dyad-cli.js file.
+This can be run with Node.js: `node \$(dyad_cli_js()) compile ...`
 
 # Example
 ```julia
-artifact_dir = dyadlang_artifact_dir("dyad-lang")
+using NodeJS_22_jll
+using DyadLangArtifacts
+
+js_path = dyad_cli_js()
+NodeJS_22_jll.node() do node
+    run(`\$node \$js_path --help`)
+end
+```
+"""
+function dyad_cli_js()
+    return joinpath(@artifact_str("dyad-cli"), "dyad-cli.js")
+end
+
+"""
+    dyadlang_artifact_dir(name::String) -> String
+
+Get the directory of a specific artifact.
+This will be a directory that contains the artifact data,
+and optionally an ATTRIBUTION.md file with attribution information.
+
+# Example
+```julia
+artifact_dir = dyadlang_artifact_dir("dyad-cli")
 println(artifact_dir)
 ```
-
 """
 function dyadlang_artifact_dir(name::String)
     return @artifact_str name
@@ -29,29 +48,18 @@ Returns the contents of the ATTRIBUTION.md file included with the artifact.
 
 # Example
 ```julia
-attribution = get_attribution("dyad-lang")
+attribution = get_attribution("dyad-cli")
 println(attribution)
 ```
 """
 function get_attribution(artifact_name::String)
     artifact_path = dyadlang_artifact_dir(artifact_name)
     attribution_file = joinpath(artifact_path, "ATTRIBUTION.md")
-    
-    return if !isfile(attribution_file)
-        "Attribution file not found for artifact: $artifact_name"
-    else
-        last(eachline(attribution_file))
-    end
-end
 
-function get_attribution_info(artifact_name::String)
-    artifact_path = dyadlang_artifact_dir(artifact_name)
-    attribution_file = joinpath(artifact_path, "ATTRIBUTION.md")
     if !isfile(attribution_file)
         return "Attribution file not found for artifact: $artifact_name"
     end
-    attribution = read(attribution_file, String)
-    return attribution
+    return read(attribution_file, String)
 end
 
 """
@@ -64,7 +72,7 @@ function list_artifacts()
     if !isfile(artifacts_toml)
         return String[]
     end
-    
+
     # Simple parsing - just get top-level keys
     artifacts = String[]
     for line in readlines(artifacts_toml)
@@ -73,10 +81,10 @@ function list_artifacts()
             push!(artifacts, m[1])
         end
     end
-    
+
     return sort(unique(artifacts))
 end
 
-export dyadlang_artifact_dir, get_attribution_info, get_attribution, list_artifacts
+export dyad_cli_js, dyadlang_artifact_dir, get_attribution, list_artifacts
 
 end
