@@ -14,9 +14,7 @@ using NodeJS_22_jll
 using DyadLangArtifacts
 
 js_path = dyad_cli_js()
-NodeJS_22_jll.node() do node
-    run(`\$node \$js_path --help`)
-end
+run(`\$(NodeJS_22_jll.node()) \$js_path --help`)
 ```
 """
 function dyad_cli_js()
